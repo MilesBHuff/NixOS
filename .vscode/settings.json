@@ -1,0 +1,11 @@
+{
+    "nix.enableLanguageServer": true,
+
+    // Install and use one of the following:
+    "nix.serverPath": "rnix-lsp",
+    // "nix.serverPath": "nil",
+    // "nix.serverPath": "nixd",
+    
+    // Install and use one of the following:
+    "nix.formatterPath": "nixpkgs-fmt",
+}
