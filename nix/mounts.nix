@@ -108,8 +108,8 @@
     ################################################################################
     ## SWAP DEVICES                                                               ##
     ################################################################################
-    #TODO: Create/delete swapfiles as needed (increments of 1GiB), so that there is always at leat 1GiB of free swap and less than 2GiB of free swap.
-    #TODO: Dynamically create a `0.swp` file of a size equivalent to system RAM, for hibernation.
+    #TODO: Create/delete swapfiles as needed (increments of 1GiB), so that there is always at least 1GiB / less than 2GiB of free swap.
+    #TODO: Dynamically create/delete a `0.swp` file of a size equivalent to system RAM, for hibernation.
 
     systemd.tmpfiles.rules = config.systemd.tmpfiles.rules ++ [
         "d /swap 0600 root root -"
