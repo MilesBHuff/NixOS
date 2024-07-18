@@ -39,19 +39,19 @@
         };
         "/boot" = {
             depends = [ "/" ];
-            device = "/rpool/@/system/boot";
+            device = "/rpool/system/boot";
             fsType = "zfs";
             options = [ "lazytime" ];
         };
         "/var" = {
             depends = [ "/" ];
-            device = "rpool/@/system/var";
+            device = "rpool/system/var";
             fsType = "zfs";
             options = [ "lazytime" ];
         };
         "/nix" = {
             depends = [ "/" ];
-            device = "/rpool/@/nix";
+            device = "/rpool/nix";
             fsType = "zfs";
             options = [ "lazytime" ];
         };
@@ -62,19 +62,19 @@
 
         "/.persist" = {
             depends = [ "/" ];
-            device = "/rpool/@/persist";
+            device = "/rpool/persist";
             fsType = "zfs";
             options = [ "lazytime" ];
         };
         "/srv" = {
             depends = [ "/" ];
-            device = "/rpool/@/persist/srv";
+            device = "/rpool/persist/srv";
             fsType = "zfs";
             options = [ "lazytime" ];
         };
         "/home" = {
             depends = [ "/" ];
-            device = "/rpool/@/persist/home";
+            device = "/rpool/persist/home";
             fsType = "zfs";
             options = [ "lazytime" ];
         };
@@ -85,7 +85,7 @@
 
         "/media/games" = {
             depends = [ "/" ];
-            device = "/xpool/@/games";
+            device = "/xpool/games";
             fsType = "zfs";
             options = [ "lazytime" "noauto" "user" ];
         };
