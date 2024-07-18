@@ -1,5 +1,13 @@
 #!/usr/bin/env nix eval -f
 {config, pkgs, ...}: {
+
+    ## Drives that are primarily or totally dedicated to ZFS should have Linux's default I/O scheduler disabled, since they have their own built-in.
+    #TODO: Dynamically populate the relevant disks.
+    services.udev.extraRules = ''
+        ACTION=="add|change", KERNEL=="nvme0n1", ATTR{queue/scheduler}="noop"
+        ACTION=="add|change", KERNEL=="nvme1n1", ATTR{queue/scheduler}="noop"
+    '';
+
     #WARN: btrfs and zfs do poorly with access time updates, which actually trigger a full CoW, which can dramatically increase space usage if the files in-question have previously been snapshotted!  Accordingly, `atime` and `relatime` should *not* be used on btrfs or zfs if you plan to make use of snapshotting.
     #NOTE: `lazytime` affects `mtime` and `ctime`, too -- not just `atime`.  Accordingly, it can still be beneficial in tandem with `noatime`.
     fileSystems = {
@@ -100,10 +108,16 @@
     ################################################################################
     ## SWAP DEVICES                                                               ##
     ################################################################################
-
-    #TODO: Create the `/swap` directory if it doesn't exist.
     #TODO: Create/delete swapfiles as needed (increments of 1GiB), so that there is always at leat 1GiB of free swap and less than 2GiB of free swap.
     #TODO: Dynamically create a `0.swp` file of a size equivalent to system RAM, for hibernation.
+
+    systemd.tmpfiles.rules = config.systemd.tmpfiles.rules ++ [
+        "d /swap 0600 root root -"
+        "f /swap/1.swp 0600 root root 0"
+        "f /swap/2.swp 0600 root root 0"
+        "f /swap/3.swp 0600 root root 0"
+        "f /swap/4.swp 0600 root root 0"
+    ];
     swapDevices = [{
         device = "/swap/1.swp";
         priority = 99;

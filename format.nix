@@ -6,7 +6,6 @@
         ## DISK LAYOUTS                                                               ##
         ################################################################################
 
-        #TODO: Disable Linux's builtin I/O scheduler for these devices so that ZFS's can take over.
         let diskContents = {
             type = "gpt";
             partitions = {
