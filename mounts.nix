@@ -1,5 +1,5 @@
 #!/usr/bin/env nix eval -f
-{config, pkgs, ...}: {
+{config, pkgs, lib, ...}: {
 
     ## Drives that are primarily or totally dedicated to ZFS should have Linux's default I/O scheduler disabled, since they have their own built-in.
     #TODO: Dynamically populate the relevant disks.

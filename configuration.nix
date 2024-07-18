@@ -1,5 +1,5 @@
 #!/usr/bin/env nix eval -f
-{config, pkgs, ...}: {
+{config, pkgs, lib, ...}: {
     imports = [
         ./hardware-configuration.nix ## Run `nixos-generate-config` to update this file.
         ./format.nix
