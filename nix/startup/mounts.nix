@@ -104,33 +104,4 @@
             options = [ "lazytime" "noauto" ];
         };
     };
-
-    ################################################################################
-    ## SWAP DEVICES                                                               ##
-    ################################################################################
-
-    systemd.tmpfiles.rules = config.systemd.tmpfiles.rules ++ [
-        "d /swap 0600 root root -"
-        "f /swap/1.swp 0600 root root 0"
-        "f /swap/2.swp 0600 root root 0"
-        "f /swap/3.swp 0600 root root 0"
-        "f /swap/4.swp 0600 root root 0"
-    ];
-    swapDevices = [{
-        device = "/swap/1.swp";
-        priority = 99;
-        size = 1024; #MiB
-    } {
-        device = "/swap/2.swp";
-        priority = 98;
-        size = 1024; #MiB
-    } {
-        device = "/swap/3.swp";
-        priority = 97;
-        size = 1024; #MiB
-    } {
-        device = "/swap/4.swp";
-        priority = 96;
-        size = 1024; #MiB
-    }];
 }
