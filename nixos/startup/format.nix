@@ -93,6 +93,7 @@
 
                     encryption = "aes-256-gcm";
                     keyformat = "passphrase";
+                    keylocation = "prompt";
 
                     mountpoint = "none";
 
