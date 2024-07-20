@@ -1,5 +1,5 @@
 #!/usr/bin/env nix eval -f
-{config, pkgs, lib, ...}: {
+{config, pkgs, lib, var, ...}: {
     disko.devices = {
 
         ################################################################################
@@ -56,7 +56,7 @@
                     format = "vfat";
                     mountpoint = "/boot/efi";
                     mountOptions = [
-                        "iocharset=utf8" "tz=UTC" ## Will not be used by Windows, so making it maximally Linux-friendly.
+                        "iocharset=utf8" "tz=UTC" ## Will not be used by Windows, so we might as well make it maximally Linux-friendly.
                         "sync" "flush" ## FAT has no journalling, so all writes should be done synchronously to help ensure data integrity.  Write issues here can prevent booting!
                         "lazytime" "noatime"
                     ];
@@ -73,12 +73,12 @@
                     ashift = 12; ## ashift=12 is 4096, appropriate for Advanced Format drives, which is basically everything these days.
 
                     autoexpand = "on";  ## Automatically expands the pool to use available space.
-                    autoreplace = "on"; ## Automatically replaces failed drives with newly inserted ones.
+                    # autoreplace = "on"; ## Automatically replaces failed drives with newly inserted ones.
                 };
                 rootFsOptions = {
 
                     atime = "off"; ## `atime` causes data duplication on read after snapshots.
-                    compression = "on"; ## Recommended on; effectively no performance hit for free space savings.  Default value is LZ4.
+                    compression = "on";  ## Recommended on; effectively no performance hit for free space savings.  Default value is LZ4.
                     logbias = "latency"; ## Correct setting for PCs; set to "throughput" if server.
 
                     acltype = "posixacl";       ## Required for `journald`.

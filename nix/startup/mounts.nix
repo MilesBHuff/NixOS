@@ -1,5 +1,5 @@
 #!/usr/bin/env nix eval -f
-{config, pkgs, lib, ...}: {
+{config, pkgs, lib, var, ...}: {
 
     ## Drives that are primarily or totally dedicated to ZFS should have Linux's default I/O scheduler disabled, since they have their own built-in.
     #TODO: Dynamically populate the relevant disks.
@@ -16,8 +16,8 @@
         ## IMPERSISTENT DEVICES                                                       ##
         ################################################################################
 
-        "/" = { #TODO: Make this automatically roll back to an empty snapshot at every boot, for impermanence.
-            device = "rpool/system";
+        "/" = {
+            device = "nix-pool/system";
             fsType = "zfs";
             options = [ "lazytime" ];
         };
@@ -35,7 +35,7 @@
         ## SEMI-PERSISTENT DEVICES                                                    ##
         ################################################################################
 
-        "/boot/efi" = { ## https://docs.zfsbootmenu.org/en/v2.3.x/general/mdraid-esp.html
+        "/boot/efi" = {
             depends = [ "/" ];
             device = "/dev/md/esp";
             fsType = "vfat";
@@ -47,19 +47,19 @@
         };
         "/boot" = {
             depends = [ "/" ];
-            device = "/rpool/system/boot";
+            device = "/nix-pool/system/boot";
             fsType = "zfs";
             options = [ "lazytime" ];
         };
         "/var" = {
             depends = [ "/" ];
-            device = "rpool/system/var";
+            device = "nix-pool/system/var";
             fsType = "zfs";
             options = [ "lazytime" ];
         };
         "/nix" = {
             depends = [ "/" ];
-            device = "/rpool/nix";
+            device = "/nix-pool/nix";
             fsType = "zfs";
             options = [ "lazytime" ];
         };
@@ -70,19 +70,19 @@
 
         "/.persist" = {
             depends = [ "/" ];
-            device = "/rpool/persist";
+            device = "/nix-pool/persist";
             fsType = "zfs";
             options = [ "lazytime" ];
         };
         "/srv" = {
             depends = [ "/" ];
-            device = "/rpool/persist/srv";
+            device = "/nix-pool/persist/srv";
             fsType = "zfs";
             options = [ "lazytime" ];
         };
         "/home" = {
             depends = [ "/" ];
-            device = "/rpool/persist/home";
+            device = "/nix-pool/persist/home";
             fsType = "zfs";
             options = [ "lazytime" ];
         };
@@ -93,13 +93,13 @@
 
         "/media/games" = {
             depends = [ "/" ];
-            device = "/xpool/games";
+            device = "/game-pool/games";
             fsType = "zfs";
             options = [ "lazytime" "noauto" "user" ];
         };
         "/media/backups" = {
             depends = [ "/" ];
-            device = "/kpool/@";
+            device = "/backup-pool/@";
             fsType = "zfs";
             options = [ "lazytime" "noauto" ];
         };

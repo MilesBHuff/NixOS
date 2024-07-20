@@ -1,22 +1,32 @@
 #!/usr/bin/env nix eval -f
-{config, pkgs, lib, ...}: {
+{config, pkgs, lib, var, ...}: {
+    system.stateVersion = "24.05"; ## The version of NixOS you are using.
     imports = [
-        ./initializations.nix
-        ./hardware-configuration.nix ## Run `nixos-generate-config` to update this file.
-        ./packages.nix
+        "./initializations.nix"
+        "./hardware-configuration.nix" ## Run `nixos-generate-config` to update this file.
 
-        ./startup/format.nix
-        ./startup/mounts.nix ## Overrides `hardware-configuration.nix`.  Comment to not override.
-        ./startup/boot.nix
+        "./packages/localization.nix"
+        "./packages/time.nix"
+        "./packages/networking.nix"
+        "./packages/audio.nix"
+        "./packages/printing.nix"
+        "./packages/desktop.nix"
+        "./packages.nix"
 
-        ./shutdown/hibernate.nix
-        ./shutdown/restart.nix
+        "./startup/format.nix"
+        "./startup/mounts.nix" ## Overrides `hardware-configuration.nix`.  Comment to not override.
+        "./startup/boot.nix"
 
-        ./services/antivirus.nix
-        ./services/defragment.nix
-        ./services/rotational-settings.nix
-        ./services/scrub.nix
-        ./services/snapshots.nix
-        ./services/swap.nix
+        "./shutdown/hibernate.nix"
+        "./shutdown/restart.nix"
+
+        "./units/antivirus.nix"
+        "./units/defragment.nix"
+        "./units/rotational-settings.nix"
+        "./units/scrub.nix"
+        "./units/snapshots.nix"
+        "./units/swap.nix"
+
+        "./users/miles.nix"
     ];
 }
