@@ -16,7 +16,7 @@ ntskeydir  /var/lib/chrony/ntskeys/
 
 ## Files
 driftfile   /var/lib/chrony/drift
-hwclockfile /etc/adjtime
+# hwclockfile /etc/adjtime
 ntsca       /etc/ssl/certs/ca-bundle.crt #NOTE: Differs by distro
 rtcfile     /var/lib/chrony/rtc
 
@@ -49,4 +49,5 @@ leapsectz right/UTC ## Make chrony use UTC for leap seconds.
 hwtimestamp * ## Delays in networking
 tempcomp      ## Relationship between software clock errors and temperature sensors
     '';
+    #TODO: Figure out if we need `hwclock`;  if we do, ensure that its systemd services are enabled.
 }
