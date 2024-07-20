@@ -2,9 +2,9 @@
 {config, pkgs, lib, var, ...}: {
     i18n.defaultLocale = "en_US.UTF-8";
     i18n.supportedLocales = [
-        "C.UTF-8"
+        i18n.defaultLocale
         "en_CA.UTF-8"
-        "en_US.UTF-8"
+        "C.UTF-8"
     ];
     i18n.extraLocaleSettings = {
         COUNTRY=US
