@@ -1,6 +1,9 @@
 #!/usr/bin/env nix eval -f
 {config, pkgs, lib, var, ...}: {
+
+    ## Hosts settings
     networking.hostName = "ultima"; #TWEAKABLE: Replace "ultima" with your desired hostname.
+    #TODO: Define `/etc/hosts`
 
     ## Ability to network
     networking.networkmanager.enable = true;
@@ -13,4 +16,7 @@
     networking.firewall.enable = true; #TODO: Is this `firewalld`?
     networking.firewall.allowedTCPPorts = [];
     networking.firewall.allowedUDPPorts = [];
+
+    #TODO: Set up DoT with Quad9
+    #TODO: Set up DNS caching
 }
