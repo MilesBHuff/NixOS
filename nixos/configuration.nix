@@ -5,20 +5,22 @@
         "./initializations.nix"
         "./hardware-configuration.nix" ## Run `nixos-generate-config` to update this file.
 
-        "./packages/localization.nix"
-        "./packages/time.nix"
-        "./packages/networking.nix"
-        "./packages/audio.nix"
-        "./packages/printing.nix"
-        "./packages/desktop.nix"
-        "./packages.nix"
+        "./subsystems/localization.nix"
+        "./subsystems/time.nix"
+        "./subsystems/networking.nix"
+        "./subsystems/audio.nix"
+        "./subsystems/printing.nix"
+        "./subsystems/desktop.nix"
+        "./subsystems/packages.nix"
 
         "./startup/format.nix"
         "./startup/mounts.nix" ## Overrides `hardware-configuration.nix`.  Comment to not override.
         "./startup/boot.nix"
 
-        "./shutdown/hibernate.nix"
-        "./shutdown/restart.nix"
+        "./users/miles.nix"
+
+        "./actions/hibernate.nix"
+        "./actions/restart.nix"
 
         "./units/antivirus.nix"
         "./units/defragment.nix"
@@ -26,7 +28,5 @@
         "./units/scrub.nix"
         "./units/snapshots.nix"
         "./units/swap.nix"
-
-        "./users/miles.nix"
     ];
 }
