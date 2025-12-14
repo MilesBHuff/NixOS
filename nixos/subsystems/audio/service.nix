@@ -9,36 +9,74 @@
         alsa.support32Bit = true;
         pulse.enable = true;
         jack.enable = true;
-        extraLibraries = [ pkgs.libsoxr ];
-    };
 
-    ## Copied from: https://nixos.wiki/wiki/PipeWire#Bluetooth_Configuration
-    services.pipewire.wireplumber.extraConfig.bluetoothEnhancements = {
-        "monitor.bluez.properties" = {
-            "bluez5.enable-sbc-xq" = true;
-            "bluez5.enable-msbc" = true;
-            "bluez5.enable-hw-volume" = true;
-            "bluez5.roles" = [ "hsp_hs" "hsp_ag" "hfp_hf" "hfp_ag" ];
+        ## Copied from: https://nixos.wiki/wiki/PipeWire#Bluetooth_Configuration
+        wireplumber.extraConfig.bluetoothEnhancements = {
+            "monitor.bluez.properties" = {
+                "bluez5.enable-sbc-xq" = true;
+                "bluez5.enable-msbc" = true;
+                "bluez5.enable-hw-volume" = true;
+                "bluez5.roles" = [ "hsp_hs" "hsp_ag" "hfp_hf" "hfp_ag" ];
+            };
+        };
+
+        ## Custom stuff
+        extraLibraries = [ pkgs.libsoxr ]; ## Do I need this now that PulseAudio is dead?
+        extraConfig = {
+
+            ## Priority tuning
+            "module.rt.args" = {
+                "nice.level" = -19;
+                "rt.prio" = 40;
+            };
+
+            ## Mixing
+            "stream.properties" = {
+                "node.lock-quantum" = false; ## Whether to keep quantum stable while apps are active
+                "resample.quality" = 10;
+                "channelmix.upmix" = true;
+                "channelmix.mix-lfe" = true; ## Consume LFE
+                "channelmix.lfe-cutoff" = 0.0; ## Disable synthesizing LFE
+            };
+
+            ## Pipewire Settings
+            pipewire."90-custom"."context.properties" = {
+
+                ## Memory locking
+                "mem.allow-mlock" = true;
+                "mem.warn-mlock" = false;
+                "mem.mlock-all" = true;
+
+                ## Sampling
+                "default.clock.allowed-rates" = [ 48000 44100 ];
+                "default.clock.rate" = 48000;
+                "resample.quality" = 10;
+
+                ## Latency
+                "default.clock.quantum-floor" = 16; ## 1/3ms (0.3ms) Basically the lowest anything physically supports running at.
+                "default.clock.min-quantum" = 32; ## 2/3ms (0.7ms) Physically no point in allowing lower; would just waste system resources. Even controlled inter-aural comparisons (which we're way more-sensitive to than total delay) at 2kHz (our most-sensitive frequency) show sensitivity only to 1ms, and this is below that, allowing for 0.3ms of additional lag before we hit that 1ms target.
+                "default.clock.quantum" = 64; ## 4/3ms (1.3ms) Keeps us comfortably below the 2ms that our ears can detect at most frequencies in inter-aural comparisons, which is exceptional for total delay. This means the chain can be used for live monitoring with minimal comb-filtering. And in non-monitoring situations, it leaves us with plenty of headroom for DSP further in the chain.
+                "default.clock.max-quantum" = 256; ## 16/3ms (5.3ms) Below 6–10ms, overall (non-inter-aural) delay is generally imperceptible; this is the highest we can go within that limit, and it provides headroom for delays elsewhere in the chain.
+                "default.clock.quantum-limit" = 512; ## 32/3ms (10.7ms) The upper-end of the 6–10ms imperceptibility range.
+            };
+
+            ## PulseAudio Settings
+            pipewire-pulse."90-custom" = {
+                "pulse.properties" = {
+                    "pulse.default.format" = "F32";
+
+                    "pulse.min.quantum" = "16/48000";
+                    "pulse.min.req"     = "32/48000";
+                    "pulse.default.req" = "64/48000";
+                    "pulse.max.req"     = "256/48000";
+                    "pulse.max.quantum" = "512/48000";
+                };
+            };
         };
     };
 
-    ## Settings: Pipewire
-    services.pipewire.extraConfig.pipewire."context.properties" = {
-        "resample.quality" = 10;
-        "default.clock.rate" = 48000;
-        "default.clock.allowed-rates" = [ 48000 44100 ];
-
-        ## Latency
-        "default.clock.quantum-floor" = 16; ## 1/3ms (0.3ms) Basically the lowest anything physically supports running at.
-        "default.clock.min-quantum" = 32; ## 2/3ms (0.7ms) Physically no point in allowing lower; would just waste system resources. Even controlled inter-aural comparisons (which we're way more-sensitive to than total delay) at 2kHz (our most-sensitive frequency) show sensitivity only to 1ms, and this is below that, allowing for 0.3ms of additional lag before we hit that 1ms target.
-        "default.clock.quantum" = 64; ## 4/3ms (1.3ms) Keeps us comfortably below the 2ms that our ears can detect at most frequencies in inter-aural comparisons, which is exceptional for total delay. This means the chain can be used for live monitoring with minimal comb-filtering. And in non-monitoring situations, it leaves us with plenty of headroom for DSP further in the chain.
-        "default.clock.max-quantum" = 256; ## 16/3ms (5.3ms) Below 6–10ms, overall (non-inter-aural) delay is generally imperceptible; this is the highest we can go within that limit, and it provides headroom for delays elsewhere in the chain.
-        "default.clock.quantum-limit" = 512; ## 32/3ms (10.7ms) The upper-end of the 6–10ms imperceptibility range.
-    };
-
-    ## Settings: Pulseaudio
-    ## A lot of these are ignored under Pipewire, but I specify them anyway for reference so that I know how to configure systems still running actual Pulseaudio.
-    services.pipewire.pulse.config."daemon.conf" = {
+    ## Settings: Pulseaudio (no longer used; kept for historical reasons)
+    services.pulseaudio.daemon.config = {
 
         ## Memory
         lock-memory = true; ## Prevents paging out audio-related memory.
