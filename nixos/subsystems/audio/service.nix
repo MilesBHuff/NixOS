@@ -16,60 +16,68 @@
                 "bluez5.enable-sbc-xq" = true;
                 "bluez5.enable-msbc" = true;
                 "bluez5.enable-hw-volume" = true;
-                "bluez5.roles" = [ "hsp_hs" "hsp_ag" "hfp_hf" "hfp_ag" ];
+                "bluez5.roles" = [ "hsp_hs" "hsp_ag" "hfp_hf" "hfp_ag" ]; ## Try removing if you encounter weird issues.
             };
         };
 
         ## Custom stuff
-        extraLibraries = [ pkgs.libsoxr ]; ## Do I need this now that PulseAudio is dead?
         extraConfig = {
-
-            ## Priority tuning
-            "module.rt.args" = {
-                "nice.level" = -19;
-                "rt.prio" = 40;
+            pipewire = {
+                "90-memory-locking" = {
+                    "context.properties" = {
+                        "mem.allow-mlock" = true;
+                        "mem.warn-mlock" = true;
+                        "mem.mlock-all" = true;
+                    };
+                };
+                "90-sampling" = {
+                    "context.properties" = {
+                        "default.clock.allowed-rates" = [ 48000 44100 ];
+                        "default.clock.rate" = 48000;
+                        "resample.quality" = 10;
+                    };
+                };
+                "90-latency" = {
+                    "context.properties" = {
+                        "default.clock.quantum-floor" = 16; ## 1/3ms (0.3ms) Basically the lowest anything physically supports running at.
+                        "default.clock.min-quantum" = 32; ## 2/3ms (0.7ms) Physically no point in allowing lower; would just waste system resources. Even controlled inter-aural comparisons (which we're way more-sensitive to than total delay) at 2kHz (our most-sensitive frequency) show sensitivity only to 1ms, and this is below that, allowing for 0.3ms of additional lag before we hit that 1ms target.
+                        "default.clock.quantum" = 64; ## 4/3ms (1.3ms) Keeps us comfortably below the 2ms that our ears can detect at most frequencies in inter-aural comparisons, which is exceptional for total delay. This means the chain can be used for live monitoring with minimal comb-filtering. And in non-monitoring situations, it leaves us with plenty of headroom for DSP further in the chain.
+                        "default.clock.max-quantum" = 256; ## 16/3ms (5.3ms) Below 6–10ms, overall (non-inter-aural) delay is generally imperceptible; this is the highest we can go within that limit, and it provides headroom for delays elsewhere in the chain.
+                        "default.clock.quantum-limit" = 512; ## 32/3ms (10.7ms) The upper-end of the 6–10ms imperceptibility range.
+                    };
+                };
+                "90-priority" = {
+                    "module.rt.args" = {
+                        "nice.level" = -19;
+                        "rt.prio" = 40;
+                    };
+                };
             };
-
-            ## Mixing
-            "stream.properties" = {
-                "node.lock-quantum" = false; ## Whether to keep quantum stable while apps are active
-                "resample.quality" = 10;
-                "channelmix.upmix" = true;
-                "channelmix.mix-lfe" = true; ## Consume LFE
-                "channelmix.lfe-cutoff" = 0.0; ## Disable synthesizing LFE
+            client = {
+                "90-mixing" = {
+                    "stream.properties" = {
+                        "node.lock-quantum" = false; ## Whether to keep quantum stable while apps are active
+                        "resample.quality" = 14; ## Max
+                        "channelmix.upmix" = true;
+                        "channelmix.mix-lfe" = true; ## Consume LFE if it exists
+                        "channelmix.lfe-cutoff" = 0.0; ## Disable synthesizing LFE
+                    };
+                };
             };
-
-            ## Pipewire Settings
-            pipewire."90-custom"."context.properties" = {
-
-                ## Memory locking
-                "mem.allow-mlock" = true;
-                "mem.warn-mlock" = false;
-                "mem.mlock-all" = true;
-
-                ## Sampling
-                "default.clock.allowed-rates" = [ 48000 44100 ];
-                "default.clock.rate" = 48000;
-                "resample.quality" = 10;
-
-                ## Latency
-                "default.clock.quantum-floor" = 16; ## 1/3ms (0.3ms) Basically the lowest anything physically supports running at.
-                "default.clock.min-quantum" = 32; ## 2/3ms (0.7ms) Physically no point in allowing lower; would just waste system resources. Even controlled inter-aural comparisons (which we're way more-sensitive to than total delay) at 2kHz (our most-sensitive frequency) show sensitivity only to 1ms, and this is below that, allowing for 0.3ms of additional lag before we hit that 1ms target.
-                "default.clock.quantum" = 64; ## 4/3ms (1.3ms) Keeps us comfortably below the 2ms that our ears can detect at most frequencies in inter-aural comparisons, which is exceptional for total delay. This means the chain can be used for live monitoring with minimal comb-filtering. And in non-monitoring situations, it leaves us with plenty of headroom for DSP further in the chain.
-                "default.clock.max-quantum" = 256; ## 16/3ms (5.3ms) Below 6–10ms, overall (non-inter-aural) delay is generally imperceptible; this is the highest we can go within that limit, and it provides headroom for delays elsewhere in the chain.
-                "default.clock.quantum-limit" = 512; ## 32/3ms (10.7ms) The upper-end of the 6–10ms imperceptibility range.
+            jack = {
+                #TODO
             };
+            pipewire-pulse = {
+                "90-format" = {
+                    "pulse.properties" = {
+                        "pulse.default.format" = "F32";
 
-            ## PulseAudio Settings
-            pipewire-pulse."90-custom" = {
-                "pulse.properties" = {
-                    "pulse.default.format" = "F32";
-
-                    "pulse.min.quantum" = "16/48000";
-                    "pulse.min.req"     = "32/48000";
-                    "pulse.default.req" = "64/48000";
-                    "pulse.max.req"     = "256/48000";
-                    "pulse.max.quantum" = "512/48000";
+                        "pulse.min.req" = "16/48000";
+                        "pulse.min.quantum" = "32/48000";
+                        "pulse.default.req" = "64/48000";
+                        "pulse.max.quantum" = "256/48000";
+                        "pulse.max.req" = "512/48000";
+                    };
                 };
             };
         };
