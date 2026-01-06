@@ -1,94 +1,110 @@
 #!/usr/bin/env nix eval -f
 {config, pkgs, lib, var, ...}: {
 
-    ## Documentation: https://nixos.wiki/wiki/PipeWire#Enabling_PipeWire
-    security.rtkit.enable = true;
-    services.pipewire = {
-        enable = true;
-        alsa.enable = true;
-        alsa.support32Bit = true;
-        pulse.enable = true;
-        jack.enable = true;
+    ceil_percent_of = percent: value:
+        ((value * percent) + 99) / 100;
 
-        ## Copied from: https://nixos.wiki/wiki/PipeWire#Bluetooth_Configuration
-        wireplumber.extraConfig.bluetoothEnhancements = {
-            "monitor.bluez.properties" = {
-                "bluez5.enable-sbc-xq" = true;
-                "bluez5.enable-msbc" = true;
-                "bluez5.enable-hw-volume" = true;
-                "bluez5.roles" = [ "hsp_hs" "hsp_ag" "hfp_hf" "hfp_ag" ]; ## Try removing if you encounter weird issues.
-            };
-        };
-
-        ## Custom stuff
-        extraConfig = {
-            pipewire = {
-                "90-memory-locking" = {
-                    "context.properties" = {
-                        "mem.allow-mlock" = true;
-                        "mem.warn-mlock" = true;
-                        "mem.mlock-all" = true;
-                    };
-                };
-                "90-sampling" = {
-                    "context.properties" = {
-                        "default.clock.allowed-rates" = [ 48000 44100 ];
-                        "default.clock.rate" = 48000;
-                        "resample.quality" = 10;
-                    };
-                };
-                "90-latency" = {
-                    "context.properties" = {
-                        "default.clock.quantum-floor" = 16; ## 1/3ms (0.3ms) Basically the lowest anything physically supports running at.
-                        "default.clock.min-quantum" = 32; ## 2/3ms (0.7ms) Physically no point in allowing lower; would just waste system resources. Even controlled inter-aural comparisons (which we're way more-sensitive to than total delay) at 2kHz (our most-sensitive frequency) show sensitivity only to 1ms, and this is below that, allowing for 0.3ms of additional lag before we hit that 1ms target.
-                        "default.clock.quantum" = 64; ## 4/3ms (1.3ms) Keeps us comfortably below the 2ms that our ears can detect at most frequencies in inter-aural comparisons, which is exceptional for total delay. This means the chain can be used for live monitoring with minimal comb-filtering. And in non-monitoring situations, it leaves us with plenty of headroom for DSP further in the chain.
-                        "default.clock.max-quantum" = 256; ## 16/3ms (5.3ms) Below 6–10ms, overall (non-inter-aural) delay is generally imperceptible; this is the highest we can go within that limit, and it provides headroom for delays elsewhere in the chain.
-                        "default.clock.quantum-limit" = 512; ## 32/3ms (10.7ms) The upper-end of the 6–10ms imperceptibility range.
-                    };
-                };
-                "90-priority" = {
-                    "module.rt.args" = {
-                        "nice.level" = -19;
-                        "rt.prio" = 40;
-                    };
-                };
-            };
-            client = {
-                "90-mixing" = {
-                    "stream.properties" = {
-                        "node.lock-quantum" = false; ## Whether to keep quantum stable while apps are active
-                        "resample.quality" = 14; ## Max
-                        "channelmix.upmix" = true;
-                        "channelmix.mix-lfe" = true; ## Consume LFE if it exists
-                        "channelmix.lfe-cutoff" = 0.0; ## Disable synthesizing LFE
-                    };
-                };
-            };
-            jack = {
-                #TODO
-            };
-            pipewire-pulse = {
-                "90-format" = {
-                    "pulse.properties" = {
-                        "pulse.default.format" = "F32";
-
-                        "pulse.min.req" = "16/48000";
-                        "pulse.min.quantum" = "32/48000";
-                        "pulse.default.req" = "64/48000";
-                        "pulse.max.quantum" = "256/48000";
-                        "pulse.max.req" = "512/48000";
-                    };
-                };
-            };
-        };
-    };
-
-    ## Settings: Pulseaudio (no longer used; kept for historical reasons)
     let
+        sample_rate_default = 48000;
+        sample_rate_alternate = 44100;
+        resample_quality = 100; ## This is a percent.
+
         tsched = 1; ## `1` to reduce latency and power-consumption; `0` for compatibility.
+
+        latency_multiplier = 1; ## Increase this if your system can't handle the defaults. Should be a power of 2.
+
+        quantum_floor = 16; ## 1/3ms (0.3ms) Basically the lowest anything physically supports running at.
+        quantum_min = 32; ## 2/3ms (0.7ms) Physically no point in allowing lower; would just waste system resources. Even controlled inter-aural comparisons (which we're way more-sensitive to than total delay) at 2kHz (our most-sensitive frequency) show sensitivity only to 1ms, and this is below that, allowing for 0.3ms of additional lag before we hit that 1ms target.
+        quantum_norm = 64; ## 4/3ms (1.3ms) Keeps us comfortably below the 2ms that our ears can detect at most frequencies in inter-aural comparisons, which is exceptional for total delay. This means the chain can be used for live monitoring with minimal comb-filtering. And in non-monitoring situations, it leaves us with plenty of headroom for DSP further in the chain.
+        quantum_max = 256; ## 16/3ms (5.3ms) Below 6–10ms, overall (non-inter-aural) delay is generally imperceptible; this is the highest we can go within that limit, and it provides headroom for delays elsewhere in the chain.
+        quantum_ceil = 512; ## 32/3ms (10.7ms) The upper-end of the 6–10ms imperceptibility range.
     in {
+
+        ## Documentation: https://nixos.wiki/wiki/PipeWire#Enabling_PipeWire
+        security.rtkit.enable = true;
+        services.pipewire = {
+            enable = true;
+            alsa.enable = true;
+            alsa.support32Bit = true;
+            pulse.enable = true;
+            jack.enable = true;
+
+            ## Copied from: https://nixos.wiki/wiki/PipeWire#Bluetooth_Configuration
+            wireplumber.extraConfig.bluetoothEnhancements = {
+                "monitor.bluez.properties" = {
+                    "bluez5.enable-sbc-xq" = true;
+                    "bluez5.enable-msbc" = true;
+                    "bluez5.enable-hw-volume" = true;
+                    "bluez5.roles" = [ "hsp_hs" "hsp_ag" "hfp_hf" "hfp_ag" ]; ## Try removing if you encounter weird issues.
+                };
+            };
+
+            ## Custom stuff
+            extraConfig = {
+                pipewire = {
+                    "90-memory-locking" = {
+                        "context.properties" = {
+                            "mem.allow-mlock" = true;
+                            "mem.warn-mlock" = true;
+                            "mem.mlock-all" = true;
+                        };
+                    };
+                    "90-sampling" = {
+                        "context.properties" = {
+                            "default.clock.allowed-rates" = [ sample_rate_default sample_rate_alternate ];
+                            "default.clock.rate" = sample_rate_default;
+                            "resample.quality" = ceil_percent_of resample_quality 10;
+                        };
+                    };
+                    "90-latency" = {
+                        "context.properties" = {
+                            "default.clock.quantum-floor" = quantum_floor * latency_multiplier;
+                            "default.clock.min-quantum" = quantum_min * latency_multiplier;
+                            "default.clock.quantum" = quantum_norm * latency_multiplier;
+                            "default.clock.max-quantum" = quantum_max * latency_multiplier;
+                            "default.clock.quantum-limit" = quantum_ceil * latency_multiplier;
+                        };
+                    };
+                    "90-priority" = {
+                        "module.rt.args" = {
+                            "nice.level" = -19;
+                            "rt.prio" = 40;
+                        };
+                    };
+                };
+                client = {
+                    "90-mixing" = {
+                        "stream.properties" = {
+                            "node.lock-quantum" = false; ## Whether to keep quantum stable while apps are active
+                            "resample.quality" = ceil_percent_of resample_quality 14;
+                            "channelmix.upmix" = true;
+                            "channelmix.mix-lfe" = true; ## Consume LFE if it exists
+                            "channelmix.lfe-cutoff" = 0.0; ## Disable synthesizing LFE
+                        };
+                    };
+                };
+                jack = {
+                    #TODO
+                };
+                pipewire-pulse = {
+                    "90-format" = {
+                        "pulse.properties" = {
+                            "pulse.default.format" = "F32";
+
+                            "pulse.min.req" = "${quantum_floor * latency_multiplier}/${sample_rate_default}";
+                            "pulse.min.quantum" = "${quantum_min * latency_multiplier}/${sample_rate_default}";
+                            "pulse.default.req" = "${quantum_norm * latency_multiplier}/${sample_rate_default}";
+                            "pulse.max.quantum" = "${quantum_max * latency_multiplier}/${sample_rate_default}";
+                            "pulse.max.req" = "${quantum_ceil * latency_multiplier}/${sample_rate_default}";
+                        };
+                    };
+                };
+            };
+        };
+
+        ## Settings: Pulseaudio (no longer used; kept for historical reasons)
         services.pulseaudio = {
-            extraConfig = ''
+            configFile = pkgs.writeText "default.pa" ''
                 #!/usr/bin/pulseaudio -nF
                 ## This only runs when PulseAudio is started per-user (not system-wide).
                 .fail
@@ -176,7 +192,7 @@
                 ## Suspend idle sinks
                 load-module module-suspend-on-idle
 
-                ## Ensure `autoexit` doesn't kill PulseAudio mid-session
+                ## Support session managers (avoids issues with `autoexit`)
                 .ifexists module-console-kit.so
                 load-module module-console-kit
                 .endif
@@ -188,7 +204,7 @@
                 ## E F F E C T S                                                              ##
                 ################################################################################
 
-                ## Positionalize event sounds
+                ## Spatializes event sounds according to where they occur on the screen(s)
                 load-module module-position-event-sounds
 
                 ## Loads filters (like echo cancellation) on-demand
@@ -198,7 +214,10 @@
                 ## Cork A/V streams when a phone stream is active
                 load-module module-role-cork
 
-                ## Block recording for snaps that don't plug the "pulseaudio"/"audio-record" interfaces
+                ## Block recording for sandboxes that don't plug the "pulseaudio"/"audio-record" interfaces
+                .ifexists module-flatpak-policy.so
+                load-module module-flatpak-policy
+                .endif
                 .ifexists module-snap-policy.so
                 load-module module-snap-policy
                 .endif
@@ -234,8 +253,8 @@
                 ## Sampling
                 avoid-resampling = true; ## Locks Pulseaudio into the sample rate of the first track it plays.
                 default-sample-format = "float32le"; ## Not using 32+ bits or floats means deleting entire bits when scaling volume.
-                default-sample-rate = 48000; ## Best conventional option for math reasons.
-                alternate-sample-rate = 44100; ## CD-quality audio. Has to be supported because it's extremely common.
+                default-sample-rate = sample_rate_default; ## Best conventional option for math reasons.
+                alternate-sample-rate = sample_rate_alternate; ## CD-quality audio. Has to be supported because it's extremely common.
                 resample-method = "soxr-vhq";
 
                 ## Channels
@@ -260,23 +279,23 @@
                 log-backtrace = 0;
             };
         };
-    };
 
-    ## Settings: OpenAL
-    ## https://github.com/kcat/openal-soft/blob/master/alsoftrc.sample
-    environment.etc."openal/alsoft.conf".text = lib.generators.toINI {} {
-        general = {
-            sample-type = "float32";
-            # frequency = 48000; ## Leave empty; default behavior tries to auto-detect, and falls back to 48000 already.
-            resampler = "bsinc48";
+        ## Settings: OpenAL
+        ## https://github.com/kcat/openal-soft/blob/master/alsoftrc.sample
+        environment.etc."openal/alsoft.conf".text = lib.generators.toINI {} {
+            general = {
+                sample-type = "float32";
+                # frequency = sample_rate_default; ## Leave empty; default behavior tries to auto-detect, and falls back to 48000 already.
+                resampler = "bsinc48";
 
-            periods = 3; ## Matches what we configured for Pulseaudio above.
-            period_size = 256; ## About 5.3ms.
+                periods = 3; ## Matches what we configured for Pulseaudio above.
+                period_size = 256; ## About 5.3ms.
 
-            stereo-encoding = "hrtf"; #TODO: Implement HRTF centrally in Pipewire instead, and only when the output is fewer channels than the input.
+                stereo-encoding = "hrtf"; #TODO: Implement HRTF centrally in Pipewire instead, and only when the output is fewer channels than the input.
+            };
+            decoder = {
+                hq-mode = true;
+            }
         };
-        decoder = {
-            hq-mode = true;
-        }
     };
 }
