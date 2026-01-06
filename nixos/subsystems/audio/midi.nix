@@ -1,8 +1,8 @@
 #!/usr/bin/env nix eval -f
 {config, pkgs, lib, var, ...}: {
-    services.fluidsynth = { #TODO: Is this the best midi service?
+    services.fluidsynth = {
         enable = true;
-        soundFont = "${pkgs.soundfont-fluid}/share/sounds/sf2/Arachno-1.0.sf2"; #TODO: Confirm filename.
+        soundFont = "${pkgs.soundfont-fluid}/share/sounds/sf2/Arachno.sf2";
         soundService = "pipewire-pulse";
         extraOptions = [
             "-m" "alsa_seq" ## Midi Driver (Use ALSA for compatibility; use JACK only if you have pro audio devices that explicitly need it.)
@@ -15,11 +15,11 @@
     pkgs.soundfont-arachno = true; #TODO: Make sure this works.
     #TODO: Install SGM-V2.01.sf2 via URL: https://archive.org/download/SGM-V2.01/SGM-V2.01.sf2
 
-    ## TODO: The following directories should redirect to `/usr/share/sounds/sf2/`:
-    ## /usr/share/soundfonts/
-    ## /usr/share/cinnamon/sounds/sf2/
-    ## /usr/share/gnome/sounds/sf2/
-    ## (probably others)
+    systemd.tmpfiles.rules = lib.mkAfter [
+        "L /usr/share/soundfonts - - - - /usr/share/sounds/sf2"
+        "L /usr/share/cinnamon/sounds/sf2 - - - - /usr/share/sounds/sf2"
+        "L /usr/share/gnome/sounds/sf2 - - - - /usr/share/sounds/sf2"
+    ];
 
     #TODO: What about sf3?
 }
