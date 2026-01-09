@@ -1,9 +1,6 @@
 #!/usr/bin/env nix eval -f
 {config, pkgs, lib, var, ...}: {
 
-    ceil_percent_of = percent: value:
-        ((value * percent) + 99) / 100;
-
     let
         latency_multiplier = 1; ## Increase this if your system can't handle the defaults. Should be a power of 2.
         use_microframes = true; ## Whether to take full advantage of microframes. Requires your sound devices to be High-Speed (not Full-Speed) and not in competition with another device for their microframes.
@@ -11,14 +8,14 @@
 
         sample_rate_default = 48000;
         sample_rate_alternate = 44100;
-        resample_quality = 100; ## This is a percent.
+        resample_quality = 1.0; ## This is a percent.
     in {
         let
-            quantum_floor = if use_microframes then sample_rate_default / 8000 else sample_rate_default / 1000; ## (125µs) The absolute lowest possible with microframes.
-            quantum_min = sample_rate_default / 1000; ## (1ms) The lowest we can realistically go without microframes. Thankfully, there's physically no point in going lower, anyway: Even controlled inter-aural comparisons (which we're way more-sensitive to than total delay) at 2kHz (our most-sensitive frequency) show sensitivity only to 1ms.
-            quantum_norm = sample_rate_default / 500; ## (2ms) Our ears can detect 2ms inter-aurally at most frequencies.
-            quantum_max = sample_rate_default * 3 / 500; ## (6ms) Below 6–10ms, overall (non-inter-aural) delay is generally imperceptible; this is the highest we can go within that limit.
-            quantum_ceil = sample_rate_default / 100; ## (10ms) The upper-end of the 6–10ms imperceptibility range.
+            quantum_floor = if use_microframes then builtins.ceil (sample_rate_default / 8000.0) else builtins.ceil (sample_rate_default / 1000.0); ## (125µs) The absolute lowest possible with microframes.
+            quantum_min = builtins.round (sample_rate_default / 1000.0); ## (1ms) The lowest we can realistically go without microframes. Thankfully, there's physically no point in going lower, anyway: Even controlled inter-aural comparisons (which we're way more-sensitive to than total delay) at 2kHz (our most-sensitive frequency) show sensitivity only to 1ms.
+            quantum_norm = builtins.round (sample_rate_default / 500.0); ## (2ms) Our ears can detect 2ms inter-aurally at most frequencies.
+            quantum_max = builtins.round (sample_rate_default * 3 / 500.0); ## (6ms) Below 6–10ms, overall (non-inter-aural) delay is generally imperceptible; this is the highest we can go within that limit.
+            quantum_ceil = builtins.floor (sample_rate_default / 100.0); ## (10ms) The upper-end of the 6–10ms imperceptibility range.
         in {
             if use_microframes then boot.extraModprobeConfig = ''
                 options snd-usb-audio nrpacks=1
@@ -95,7 +92,7 @@
                             "context.properties" = {
                                 "default.clock.allowed-rates" = [ sample_rate_default sample_rate_alternate ];
                                 "default.clock.rate" = sample_rate_default;
-                                "resample.quality" = ceil_percent_of resample_quality 10;
+                                "resample.quality" = builtins.round (resample_quality * 10);
                             };
                         };
                         "90-latency" = {
@@ -118,7 +115,7 @@
                         "90-mixing" = {
                             "stream.properties" = {
                                 "node.lock-quantum" = false; ## Whether to keep quantum stable while apps are active
-                                "resample.quality" = ceil_percent_of resample_quality 14;
+                                "resample.quality" = builtins.round (resample_quality * 14);
                                 "channelmix.upmix" = true;
                                 "channelmix.mix-lfe" = true; ## Consume LFE if it exists
                                 "channelmix.lfe-cutoff" = 0.0; ## Disable synthesizing LFE
