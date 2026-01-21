@@ -13,7 +13,7 @@
     networking.proxy.noProxy = "127.0.0.1,localhost"; #TODO: Dynamically set this with relevent contents of `/etc/hosts`.
 
     ## Firewall
-    networking.firewall.enable = true; #TODO: Is this `firewalld`?
+    networking.firewall.enable = true; #TODO: Is this `firewalld`? Is it uFW?
     networking.firewall.allowedTCPPorts = [];
     networking.firewall.allowedUDPPorts = [];
 

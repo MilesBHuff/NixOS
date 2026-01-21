@@ -26,4 +26,6 @@
 
     ## Needed in order to fix theming in non-KDE Wayland windows
     programs.dconf.enable = true;
+
+    #TODO: Screensaver
 }
