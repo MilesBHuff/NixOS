@@ -105,7 +105,7 @@ let
         "com.github.tchx84.Flatseal"
 
         ## Misc
-        "com.bambulab.BambuStudio" ## Official
+        "com.bambulab.BambuStudio" ## No official option available as of 2026-01.
         "com.google.EarthPro" ## No official option available as of 2026-01.
         "com.makemkv.MakeMKV" ## No official option available as of 2026-01.
 
