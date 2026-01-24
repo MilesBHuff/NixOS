@@ -9,7 +9,7 @@ About
 License
 --------------------------------------------------------------------------------
 
-| Copyright © 2024 by `Miles Bradley Huff`_ per the terms of the Lesser Affero
+| Copyright © 2024–2026 by `Miles Bradley Huff`_ per the terms of the Lesser Affero
   General Public License (v3.0 or later): "LAGPL-3.0-or-later" for short.
 
 | (The terms of this licence may be found in ``LICENSE.TXT``.)
