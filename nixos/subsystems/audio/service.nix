@@ -1,5 +1,6 @@
 #!/usr/bin/env nix eval -f
 {config, pkgs, lib, var, ...}:
+#TODO: Use speex-10 for resampling; it has the best balance of latency, CPU cost, and quality.
 
 let
     latency_multiplier = 1; ## Increase this if your system can't handle the defaults. Should be a power of 2.
