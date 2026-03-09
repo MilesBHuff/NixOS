@@ -2,10 +2,46 @@
 {config, pkgs, lib, var, ...}:
 
 let
+    ## For CPU-heavy software (mostly compression, encryption, and math libraries), compiling from source is preferred over packages *if* compiling them plus their dependents does not take too long *and* any obviated upstream packages do not do PGO.
     ## For OSS, native packages are preferred over sandboxed packages.
     ## For proprietary software, sandboxed packages are preferred over native packages.
     ## For sandboxed packages, prefer official releases over unofficial ones.
     ## Ceteris paribus, prefer Flatpak over Snap.
+    compiles = [
+        # "brotli"
+        # "bzip2"
+        # "dav1d"
+        # "ffmpeg"
+        # "flac"
+        # "gmp"
+        "imagemagick"
+        "graphicsmagick"
+        # "libaom"
+        # "libass"
+        "libdeflate"
+        # "libgcrypt"
+        # "libjpeg‑turbo"
+        # "libpng"
+        # "soxr"
+        # "speexdsp"
+        # "libvorbis"
+        # "libvpx"
+        "libqalculate"
+        "libsodium"
+        # "lz4"
+        # "mpfr"
+        # "nettle"
+        "openblas"
+        # "openssl"
+        # "opus"
+        "pigz"
+        "ripgrep"
+        # "x264"
+        # "x265"
+        # "xz"
+        # "zlib"
+        # "zstd"
+    ];
     packages = [
         "calibre"
         "minicom"
