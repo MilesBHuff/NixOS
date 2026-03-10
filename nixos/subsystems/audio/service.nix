@@ -74,7 +74,7 @@ in {
                             "api.alsa.period-num" = periods;
                             "api.alsa.period-size" = quanta.norm;
                             # "api.alsa.buffer-size" = quanta.norm * periods;
-                            "api.alsa.headroom" = 0;
+                            "api.alsa.headroom" = target_quanta.floor * 8; ## This gives us 1 FS frame or 8 HS microframes of slack.
                         }
                     }
                 }];
