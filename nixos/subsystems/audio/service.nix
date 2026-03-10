@@ -104,6 +104,7 @@ in {
                     "context.properties" = {
                         "clock.power-of-two-quantum" = true; ## While non-powers of two can yield integer seconds, many audio pathways expect or perform better with powers of two, so we should ensure we use them.
                         "node.lock-quantum" = false; ## Whether to keep quantum stable while apps are active
+                        "clock.force-quantum" = quanta.norm; ## Optional. Prevents applications from forcing us to the quantum limit.
 
                         "default.clock.quantum-floor" = quanta.floor;
                         "default.clock.min-quantum" = quanta.min;
