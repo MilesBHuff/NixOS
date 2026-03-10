@@ -132,7 +132,7 @@ in {
                     "stream.properties" = {
                         "resample.method"  = "soxr";
                         "resample.quality" = resample_quality;
-                        "channelmix.upmix" = true;
+                        "channelmix.upmix" = true; ## This beats having surround speakers sit idle 99% of the time.
                         "channelmix.mix-lfe" = true; ## Consume LFE if it exists
                         "channelmix.lfe-cutoff" = 0.0; ## Disable synthesizing LFE
                     };
