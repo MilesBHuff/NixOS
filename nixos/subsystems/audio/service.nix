@@ -1,6 +1,5 @@
 #!/usr/bin/env nix eval -f
 {config, pkgs, lib, var, ...}:
-#TODO: Use soxr-lq-10 for resampling; it has the lowest latency of all algorithms with -80dB stopband suppression. (80dB is plenty for single-person listening; output SPL is never above 80dB.)
 
 let
     latency_multiplier = 1; ## Increase this if your system can't handle the defaults. Should be a power of 2.
@@ -9,7 +8,7 @@ let
 
     sample_rate_default = 48000;
     sample_rate_alternate = 44100;
-    resample_quality = 1.0; ## This is a multiplier ranging from 0.0–1.0.
+    resample_quality = 2; ## This is for SoXR. A `2` corresponds to "low-quality", which isn't actually low at all: it has worst-case stopbands of -80dB and begins to roll off at 20kHz, both of which are below audibility for safe-level listening by normal humans. Higher quality levels improve these metrics but come with severe increases to latency, so they should be avoided if possible.
 
     quantum_floor = if use_microframes then builtins.ceil (sample_rate_default / 8000.0) else builtins.ceil (sample_rate_default / 1000.0); ## (125µs) The absolute lowest possible with microframes.
     quantum_min = builtins.round (sample_rate_default / 1000.0); ## (1ms) The lowest we can realistically go without microframes. Thankfully, there's physically no point in going lower, anyway: Even controlled inter-aural comparisons (which we're way more-sensitive to than total delay) at 2kHz (our most-sensitive frequency) show sensitivity only to 1ms.
@@ -86,7 +85,8 @@ in {
                     "context.properties" = {
                         "default.clock.allowed-rates" = [ sample_rate_default sample_rate_alternate ];
                         "default.clock.rate" = sample_rate_default;
-                        "resample.quality" = builtins.round (resample_quality * 10);
+                        "resample.method" = "soxr";
+                        "resample.quality" = resample_quality;
                     };
                 };
                 "90-latency" = {
@@ -111,7 +111,8 @@ in {
                 "90-mixing" = {
                     "stream.properties" = {
                         "node.lock-quantum" = false; ## Whether to keep quantum stable while apps are active
-                        "resample.quality" = builtins.round (resample_quality * 14);
+                        "resample.method"  = soxr
+                        "resample.quality" = resample_quality;
                         "channelmix.upmix" = true;
                         "channelmix.mix-lfe" = true; ## Consume LFE if it exists
                         "channelmix.lfe-cutoff" = 0.0; ## Disable synthesizing LFE
