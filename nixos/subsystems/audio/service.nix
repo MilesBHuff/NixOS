@@ -102,8 +102,8 @@ in {
                 "90-latency" = {
                     "context.properties" = {
                         "clock.power-of-two-quantum" = true; ## While non-powers of two can yield integer seconds, many audio pathways expect or perform better with powers of two, so we should ensure we use them.
-                        "node.lock-quantum" = false; ## Whether to keep quantum stable while apps are active
-                        "clock.force-quantum" = quanta.norm; ## Optional. Prevents applications from forcing us to the quantum limit.
+                        "node.lock-quantum" = false; ## Whether to keep quantum stable while apps are active.
+                        # "clock.force-quantum" = quanta.norm; ## Optional. Prevents applications from forcing us to the quantum limit. In my experience, Firefox always requests the max, and I know it's not the only one; this largely defeats the purpose of my tuning.
 
                         "default.clock.quantum-floor" = quanta.floor;
                         "default.clock.min-quantum" = quanta.min;
