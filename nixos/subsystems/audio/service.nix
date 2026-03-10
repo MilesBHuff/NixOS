@@ -1,6 +1,6 @@
 #!/usr/bin/env nix eval -f
 {config, pkgs, lib, var, ...}:
-#TODO: Use speex-10 for resampling; it has the best balance of latency, CPU cost, and quality.
+#TODO: Use soxr-lq-10 for resampling; it has the lowest latency of all algorithms with -80dB stopband suppression. (80dB is plenty for single-person listening; output SPL is never above 80dB.)
 
 let
     latency_multiplier = 1; ## Increase this if your system can't handle the defaults. Should be a power of 2.
