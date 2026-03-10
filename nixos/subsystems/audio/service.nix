@@ -36,7 +36,7 @@ let
         min   =  num2pow2 "round" (target_quanta.min);                        ## `round` because we're targeting this value roughly.
         norm  = (num2pow2 "floor" (target_quanta.norm)) * latency_multiplier; ## `floor` because we're trying to keep below a perceptual target.
         max   = (num2pow2 "round" (target_quanta.max))  * latency_multiplier; ## `round` because we're targeting this value roughly.
-        ceil  = (num2pow2 "floor" (target_quanta.ceil)) * latency_multiplier; ## `floor` because we're trying to stay below a perceptual target.
+        ceil  = (num2pow2 "round" (target_quanta.ceil)) * latency_multiplier; ## `round` because we're targeting this value roughly.
     };
 in {
     boot.extraModprobeConfig = lib.optionalString use_microframes ''
