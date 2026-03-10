@@ -92,16 +92,16 @@ in {
         ## Custom stuff
         extraConfig = {
             pipewire = {
-                "90-memory-locking" = {
-                    "context.properties" = {
-                        "mem.allow-mlock" = true;
-                        "mem.warn-mlock" = true;
-                        "mem.mlock-all" = true;
-                    };
-                };
+                # "90-memory-locking" = {
+                #     "context.properties" = {
+                #         "mem.allow-mlock" = true;
+                #         "mem.warn-mlock" = true;
+                #         "mem.mlock-all" = true;
+                #     };
+                # };
                 "90-sampling" = {
                     "context.properties" = {
-                        # "default.clock.allowed-rates" = [ sample_rate_default sample_rate_alternate ];
+                        "default.clock.allowed-rates" = [ sample_rate_default ]; #sample_rate_alternate
                         "default.clock.rate" = sample_rate_default;
                         "resample.method" = "soxr";
                         "resample.quality" = resample_quality;
