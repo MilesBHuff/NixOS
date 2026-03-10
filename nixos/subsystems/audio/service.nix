@@ -18,7 +18,8 @@ let
     sample_rate_alternate = 44100;
     resample_quality = 2; ## This is for SoXR. A `2` corresponds to "low-quality", which isn't actually low at all: it has worst-case stopbands of -80dB and begins to roll off at 20kHz, both of which are below audibility for safe-level listening by normal humans. Higher quality levels improve these metrics but come with severe increases to latency, so they should be avoided if possible.
 
-    latency_multiplier = 5; ## `1` effectively guarantees you will never notice latency, `5` means you will only notice latency when your system is lagging, `10` is the highest I'd recommend going for normal use, and `12` puts you near Pipewire's defaults. `5` works without issue on a Dell Latitue E5530, so there's no reason to ever go higher unless your USB situation is whack.
+    periods = 2; ## `1` provides the target_quanta below, but has no resiliency. Default is `2`.
+    latency_multiplier = 2; ## You can increase this if you want to save CPU. Must be a power of two. Multiply this by periods above to get your total latency multiplier. You probably don't want a total multiplier above `5`.
     use_microframes = true; ## Whether to take full advantage of microframes. Requires your sound devices to be High-Speed (not Full-Speed) and not in competition with another device for their microframes.
     tsched = 1; #DEPRECATED ## `1` to reduce latency and power-consumption; `0` for compatibility.
 
@@ -33,9 +34,9 @@ let
     quanta = {
         floor = num2pow2 "ceil"  (target_quanta.floor);
         min   = num2pow2 "round" (target_quanta.min);
-        norm  = num2pow2 "floor" (target_quanta.norm * latency_multiplier);
-        max   = num2pow2 "round" (target_quanta.max  * latency_multiplier);
-        ceil  = num2pow2 "floor" (target_quanta.ceil * latency_multiplier);
+        norm  = num2pow2 "floor" (target_quanta.norm) * latency_multiplier;
+        max   = num2pow2 "round" (target_quanta.max)  * latency_multiplier;
+        ceil  = num2pow2 "floor" (target_quanta.ceil) * latency_multiplier;
     };
 in {
     boot.extraModprobeConfig = lib.optionalString use_microframes ''
@@ -65,29 +66,18 @@ in {
             ## ALSA
             "51-alsa-latency" = {
                 "monitor.alsa.rules" = [{
-
-                    ## DAC
-                    matches = [{ "device.name" = "alsa_card.usb-REPLACE_ME_DAC"; }]; #TODO
+                    matches = [
+                        { node.name = "~alsa_output.*" }
+                        { node.name = "~alsa_input.*" }
+                    ];
                     actions = {
                         update-props = {
-                            "audio.rate" = sample_rate_default;
-                            "api.alsa.period-size" = quanta.min;
-                            "api.alsa.period-num" = 2;
+                            "api.alsa.period-num" = periods;
+                            "api.alsa.period-size" = quanta.norm;
+                            # "api.alsa.buffer-size" = quanta.norm * periods;
                             "api.alsa.headroom" = 0;
-                        };
-                    };
-                } {
-
-                    ## Mic
-                    matches = [{ "device.name" = "alsa_card.usb-REPLACE_ME_MIC"; }]; #TODO
-                    actions = {
-                        update-props = {
-                            "audio.rate" = sample_rate_default;
-                            "api.alsa.period-size" = quanta.min;
-                            "api.alsa.period-num" = 2;
-                            "api.alsa.headroom" = 0;
-                        };
-                    };
+                        }
+                    }
                 }];
             };
         };
@@ -351,8 +341,8 @@ in {
             # frequency = sample_rate_default; ## Leave empty; default behavior tries to auto-detect, and falls back to 48000 already.
             resampler = "bsinc48";
 
-            periods = 3; ## Matches what we configured for Pulseaudio above.
-            period_size = 256; ## About 5.3ms.
+            periods = periods; ## Matches what we configured for Pulseaudio above.
+            period_size = quanta.norm; ## About 5.3ms.
 
             stereo-encoding = "hrtf"; #TODO: Implement HRTF centrally in Pipewire instead, and only when the output is fewer channels than the input.
         };
