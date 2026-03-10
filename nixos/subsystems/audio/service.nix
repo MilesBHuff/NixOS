@@ -2,6 +2,7 @@
 {config, pkgs, lib, var, ...}:
 
 let
+    ## Helper functions
     round_positive = num: builtins.floor (num + 0.5);
     num2pow2 = directionality: num:
         if num <= 1 then 1 else let
@@ -14,23 +15,25 @@ let
             round = if num - low <= high - num then low else high;
         };
 
-    ## While it may seem best to allow Pipewire to attempt to switch sample rates to match the current content, I don't actually think that's truly ideal, and here's why:
-    ## * There is a pause when switching.
-    ## * If Pipewire is running at 44.1kHz, 48kHz content has increased latency. Videos and videogames are very latency-sensitive, and both use 48kHz. The only thing that uses 44.1kHz is music. Music is not latency-sensitive. Risking increased latency on latency-sensitive use-cases in order to reduce latency on latency-insensitive use-cases makes no sense.
-    ## * Resampling to 44.1kHz with soxr-lq (`2`) rolls off above 17.6kHz, which is really low. Resampling to 48kHz with soxr-lq rolls off above 19.2kHz, which is extremely acceptable. `2` has lower latency and CPU than `3`.
-    ## * All FIR SoX levels have worst-case stopband dB levels *way* below audibility: soxr-lq, the lowest quality one, has them at -100dB. 16-bit audio is at most 96dB, and the loudest you're likely to listen to music is 80dBA SPL.
-    resample_quality = 2; ## This is for SoXR. A `3` corresponds to "medium quality". Per `man sox`, `3` and `2` both have stopbands at -100dB (better than you'll ever need); but `2` starts rolling off at 80% of the max, while `3` waits until `95%`. (source: https://community.audirvana.com/t/explanation-for-sox-filter-controls/10848/9)
-    sample_rate_default = 48000;
-    # sample_rate_alternate = 44100; ## As per the above comment block, all uses of this are commented-out.
-
-    ## Multiply the below two values to get your total latency multiplier. You probably don't want a total multiplier above `5`.
-    #NOTE: A total multiplier of `4`, all things considered, lands at a total latency of about 6.3ms, without resampling.
-    periods = 2; ## `1` provides the target_quanta below, but has no resiliency. Default is `2`.
-    latency_multiplier = 2; ## You can increase this if you want to save CPU. Must be a power of two.
-
+    ## Scheduling settings
     use_microframes = true; ## Whether to take full advantage of microframes. Requires your sound devices to be High-Speed (not Full-Speed) and not in competition with another device for their microframes.
     tsched = 1; #DEPRECATED ## `1` to reduce latency and power-consumption; `0` for compatibility.
 
+    ## While it may seem best to allow Pipewire to attempt to switch sample rates to match the current content, I don't actually think that's truly ideal, and here's why:
+    ## * There is a pause when switching.
+    ## * If Pipewire is running at 44.1kHz, 48kHz content has increased latency. Videos and videogames are very latency-sensitive, and both use 48kHz. The only thing that uses 44.1kHz is music. Music is not latency-sensitive. Risking increased latency on latency-sensitive use-cases in order to reduce latency on latency-insensitive use-cases makes no sense.
+    ## * Resampling to 44.1kHz with soxr-lq (`2`) rolls off above 17.6kHz, which is really low. Resampling to 48kHz with soxr-lq rolls off above 19.2kHz, which is extremely acceptable. `2` has lower latency and CPU than `3`. Rolling off these ultra-high frequencies is actually desirable anyway because it gives headroom for boosting still-high-but-less-high frequencies into audibility.
+    ## * All FIR SoX levels have worst-case stopband dB levels *way* below audibility: soxr-lq, the lowest quality one, has them at -100dB. 16-bit audio is at most 96dB, and the loudest you're likely to listen to music is 80dBA SPL.
+    resample_quality = 2; ## This is for SoXR. A `3` corresponds to "medium quality". Per `man sox`, `3` and `2` both have stopbands at -100dB (better than you'll ever need); but `2` starts rolling off at 80% of the max, while `3` waits until `95%`. (source: https://community.audirvana.com/t/explanation-for-sox-filter-controls/10848/9)
+    sample_rate_default = 48000; ## This is most content.
+    # sample_rate_alternate = 44100; ## This is music from audio CDs. As per the above comment block, all uses of this variable are commented-out.
+
+    ## Multiply the below two values to get your total latency multiplier. You probably don't want a total multiplier above `5`.
+    #NOTE: A total multiplier of `4`, all things considered, lands at a total latency of about 6.3ms over ALSA, assuming no resampling.
+    periods = 2; ## `1` provides the target_quanta below, but has no resiliency. Default is `2`.
+    latency_multiplier = 2; ## You can increase this if you want to save CPU. Must be a power of two.
+
+    ## This block is designed to make latency imperceptible. It assumes `periods` and `latency_multiplier` both equal `1`, and it pretends non-powers of two are universally supported.
     target_quanta = { ## Division is explicitly with floats in case we ever need to support 22050Hz.
         floor = if use_microframes then builtins.ceil (sample_rate_default / 8000.0) else builtins.ceil (sample_rate_default / 1000.0); ## (125µs) The absolute lowest possible with microframes.
         min   = round_positive (sample_rate_default / 1000.0); ## (1ms) The lowest we can realistically go without microframes. Thankfully, there's physically no point in going lower, anyway: Even controlled inter-aural comparisons (which we're way more-sensitive to than total delay) at 2kHz (our most-sensitive frequency) show sensitivity only to 1ms.
@@ -83,8 +86,8 @@ in {
                             "api.alsa.period-size" = quanta.norm;
                             # "api.alsa.buffer-size" = quanta.norm * periods;
                             "api.alsa.headroom" = target_quanta.floor * 8; ## This gives us 1 FS frame or 8 HS microframes of slack.
-                        }
-                    }
+                        };
+                    };
                 }];
             };
         };
@@ -103,6 +106,7 @@ in {
                     "context.properties" = {
                         "default.clock.allowed-rates" = [ sample_rate_default ]; #sample_rate_alternate
                         "default.clock.rate" = sample_rate_default;
+
                         "resample.method" = "soxr";
                         "resample.quality" = resample_quality;
                     };
