@@ -2,24 +2,45 @@
 {config, pkgs, lib, var, ...}:
 
 let
-    latency_multiplier = 1; ## Increase this if your system can't handle the defaults. Should be a power of 2.
-    use_microframes = true; ## Whether to take full advantage of microframes. Requires your sound devices to be High-Speed (not Full-Speed) and not in competition with another device for their microframes.
-    tsched = 1; #DEPRECATED ## `1` to reduce latency and power-consumption; `0` for compatibility.
+    round = num: builtins.floor (num + 0.5);
+    num2pow2 = directionality: num:
+        if num <= 1 then 1 else let
+            power = builtins.floor (builtins.logBase 2 (num + 1e-9));
+            low = 2 ^ power;
+            high = 2 ^ (power + 1);
+        in lib.getAttr directionality {
+            floor = low;
+            ceil = high;
+            round = if num - low <= high - num then low else high;
+        };
 
     sample_rate_default = 48000;
     sample_rate_alternate = 44100;
     resample_quality = 2; ## This is for SoXR. A `2` corresponds to "low-quality", which isn't actually low at all: it has worst-case stopbands of -80dB and begins to roll off at 20kHz, both of which are below audibility for safe-level listening by normal humans. Higher quality levels improve these metrics but come with severe increases to latency, so they should be avoided if possible.
 
-    quantum_floor = if use_microframes then builtins.ceil (sample_rate_default / 8000.0) else builtins.ceil (sample_rate_default / 1000.0); ## (125µs) The absolute lowest possible with microframes.
-    quantum_min = builtins.round (sample_rate_default / 1000.0); ## (1ms) The lowest we can realistically go without microframes. Thankfully, there's physically no point in going lower, anyway: Even controlled inter-aural comparisons (which we're way more-sensitive to than total delay) at 2kHz (our most-sensitive frequency) show sensitivity only to 1ms.
-    quantum_norm = builtins.round (sample_rate_default / 500.0); ## (2ms) Our ears can detect 2ms inter-aurally at most frequencies.
-    quantum_max = builtins.round (sample_rate_default * 3 / 500.0); ## (6ms) Below 6–10ms, overall (non-inter-aural) delay is generally imperceptible; this is the highest we can go within that limit.
-    quantum_ceil = builtins.floor (sample_rate_default / 100.0); ## (10ms) The upper-end of the 6–10ms imperceptibility range.
+    latency_multiplier = 5; ## `1` effectively guarantees you will never notice latency, `5` means you will only notice latency when your system is lagging, `10` is the highest I'd recommend going for normal use, and `12` puts you near Pipewire's defaults. `5` works without issue on a Dell Latitue E5530, so there's no reason to ever go higher unless your USB situation is whack.
+    use_microframes = true; ## Whether to take full advantage of microframes. Requires your sound devices to be High-Speed (not Full-Speed) and not in competition with another device for their microframes.
+    tsched = 1; #DEPRECATED ## `1` to reduce latency and power-consumption; `0` for compatibility.
+
+    target_quanta = { ## Division is explicitly with floats in case we ever need to support 22050Hz.
+        floor = if use_microframes then builtins.ceil (sample_rate_default / 8000.0) else builtins.ceil (sample_rate_default / 1000.0); ## (125µs) The absolute lowest possible with microframes.
+        min   = round (sample_rate_default / 1000.0); ## (1ms) The lowest we can realistically go without microframes. Thankfully, there's physically no point in going lower, anyway: Even controlled inter-aural comparisons (which we're way more-sensitive to than total delay) at 2kHz (our most-sensitive frequency) show sensitivity only to 1ms.
+        norm  = round (sample_rate_default / 500.0); ## (2ms) Our ears can detect 2ms inter-aurally at most frequencies.
+        max   = round (sample_rate_default * 3 / 500.0); ## (6ms) Below 6–10ms, overall (non-inter-aural) delay is generally imperceptible; this is the highest we can go within that limit.
+        ceil  = builtins.floor (sample_rate_default / 100.0); ## (10ms) The upper-end of the 6–10ms imperceptibility range.
+    };
+    ## Many things expect quanta to be powers of two, so we need to round the above to their closest powers of two after we scale them by the latency multiplier.
+    quanta = {
+        floor = num2pow2 "ceil"  (target_quanta.floor);
+        min   = num2pow2 "round" (target_quanta.min);
+        norm  = num2pow2 "floor" (target_quanta.norm * latency_multiplier);
+        max   = num2pow2 "round" (target_quanta.max  * latency_multiplier);
+        ceil  = num2pow2 "floor" (target_quanta.ceil * latency_multiplier);
+    };
 in {
     boot.extraModprobeConfig = lib.optionalString use_microframes ''
         options snd-usb-audio nrpacks=1
     '';
-
 
     ## Documentation: https://nixos.wiki/wiki/PipeWire#Enabling_PipeWire
     security.rtkit.enable = true;
@@ -50,7 +71,7 @@ in {
                     actions = {
                         update-props = {
                             "audio.rate" = sample_rate_default;
-                            "api.alsa.period-size" = quantum_min;
+                            "api.alsa.period-size" = quanta.min;
                             "api.alsa.period-num" = 2;
                             "api.alsa.headroom" = 0;
                         };
@@ -62,7 +83,7 @@ in {
                     actions = {
                         update-props = {
                             "audio.rate" = sample_rate_default;
-                            "api.alsa.period-size" = quantum_min;
+                            "api.alsa.period-size" = quanta.min;
                             "api.alsa.period-num" = 2;
                             "api.alsa.headroom" = 0;
                         };
@@ -91,13 +112,13 @@ in {
                 };
                 "90-latency" = {
                     "context.properties" = {
-                        "clock.power-of-two-quantum" = false; ## Required to get integer quanta with common sample rates.
+                        "clock.power-of-two-quantum" = true; ## While non-powers of two can yield integer seconds, many audio pathways expect or perform better with powers of two, so we should ensure we use them.
 
-                        "default.clock.quantum-floor" = quantum_floor * latency_multiplier;
-                        "default.clock.min-quantum" = quantum_min * latency_multiplier;
-                        "default.clock.quantum" = quantum_norm * latency_multiplier;
-                        "default.clock.max-quantum" = quantum_max * latency_multiplier;
-                        "default.clock.quantum-limit" = quantum_ceil * latency_multiplier;
+                        "default.clock.quantum-floor" = quanta.floor;
+                        "default.clock.min-quantum" = quanta.min;
+                        "default.clock.quantum" = quanta.norm;
+                        "default.clock.max-quantum" = quanta.max;
+                        "default.clock.quantum-limit" = quanta.ceil;
                     };
                 };
                 "90-priority" = {
@@ -127,15 +148,15 @@ in {
                     "pulse.properties" = {
                         "pulse.default.format" = "F32";
 
-                        "pulse.min.frag" = "${quantum_min * latency_multiplier}/${sample_rate_default}";
-                        "pulse.default.frag" = "${quantum_norm * latency_multiplier}/${sample_rate_default}";
+                        "pulse.min.frag" = "${quanta.min}/${sample_rate_default}";
+                        "pulse.default.frag" = "${quanta.norm}/${sample_rate_default}";
 
-                        "pulse.min.req" = "${quantum_min * latency_multiplier}/${sample_rate_default}";
-                        "pulse.default.req" = "${quantum_norm * latency_multiplier}/${sample_rate_default}";
-                        "pulse.default.tlength" = "${quantum_norm * latency_multiplier}/${sample_rate_default}";
+                        "pulse.min.req" = "${quanta.min}/${sample_rate_default}";
+                        "pulse.default.req" = "${quanta.norm}/${sample_rate_default}";
+                        "pulse.default.tlength" = "${quanta.norm}/${sample_rate_default}";
 
-                        "pulse.min.quantum" = "${quantum_min * latency_multiplier}/${sample_rate_default}";
-                        "pulse.max.quantum" = "${quantum_max * latency_multiplier}/${sample_rate_default}";
+                        "pulse.min.quantum" = "${quanta.min}/${sample_rate_default}";
+                        "pulse.max.quantum" = "${quanta.max}/${sample_rate_default}";
                     };
                 };
             };
