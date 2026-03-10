@@ -2,7 +2,7 @@
 {config, pkgs, lib, var, ...}:
 
 let
-    round = num: builtins.floor (num + 0.5);
+    round_positive = num: builtins.floor (num + 0.5);
     num2pow2 = directionality: num:
         if num <= 1 then 1 else let
             power = builtins.floor (builtins.logBase 2 (num + 1e-9));
@@ -25,9 +25,9 @@ let
 
     target_quanta = { ## Division is explicitly with floats in case we ever need to support 22050Hz.
         floor = if use_microframes then builtins.ceil (sample_rate_default / 8000.0) else builtins.ceil (sample_rate_default / 1000.0); ## (125µs) The absolute lowest possible with microframes.
-        min   = round (sample_rate_default / 1000.0); ## (1ms) The lowest we can realistically go without microframes. Thankfully, there's physically no point in going lower, anyway: Even controlled inter-aural comparisons (which we're way more-sensitive to than total delay) at 2kHz (our most-sensitive frequency) show sensitivity only to 1ms.
-        norm  = round (sample_rate_default / 500.0); ## (2ms) Our ears can detect 2ms inter-aurally at most frequencies.
-        max   = round (sample_rate_default * 3 / 500.0); ## (6ms) Below 6–10ms, overall (non-inter-aural) delay is generally imperceptible; this is the highest we can go within that limit.
+        min   = round_positive (sample_rate_default / 1000.0); ## (1ms) The lowest we can realistically go without microframes. Thankfully, there's physically no point in going lower, anyway: Even controlled inter-aural comparisons (which we're way more-sensitive to than total delay) at 2kHz (our most-sensitive frequency) show sensitivity only to 1ms.
+        norm  = round_positive (sample_rate_default / 500.0); ## (2ms) Our ears can detect 2ms inter-aurally at most frequencies.
+        max   = round_positive (sample_rate_default * 3 / 500.0); ## (6ms) Below 6–10ms, overall (non-inter-aural) delay is generally imperceptible; this is the highest we can go within that limit.
         ceil  = builtins.floor (sample_rate_default / 100.0); ## (10ms) The upper-end of the 6–10ms imperceptibility range.
     };
     ## Many things expect quanta to be powers of two, so we need to round the above to their closest powers of two after we scale them by the latency multiplier.
@@ -103,6 +103,7 @@ in {
                 "90-latency" = {
                     "context.properties" = {
                         "clock.power-of-two-quantum" = true; ## While non-powers of two can yield integer seconds, many audio pathways expect or perform better with powers of two, so we should ensure we use them.
+                        "node.lock-quantum" = false; ## Whether to keep quantum stable while apps are active
 
                         "default.clock.quantum-floor" = quanta.floor;
                         "default.clock.min-quantum" = quanta.min;
@@ -121,8 +122,7 @@ in {
             client = {
                 "90-mixing" = {
                     "stream.properties" = {
-                        "node.lock-quantum" = false; ## Whether to keep quantum stable while apps are active
-                        "resample.method"  = soxr
+                        "resample.method"  = "soxr";
                         "resample.quality" = resample_quality;
                         "channelmix.upmix" = true;
                         "channelmix.mix-lfe" = true; ## Consume LFE if it exists
@@ -318,7 +318,7 @@ in {
             lfe-crossover-freq = 120; ## 120Hz is the official standard for LFE XO; we have to match it for playback to be accurate. The only reason to break the 120Hz standard is when you're generating your own LFE channel, which we aren't doing.
             default-sample-channels = 2;
             # default-channel-map = "side-left,side-right"; ## Whether speakers or headphones, I always have my sources at 180°. With `enable-remixing = true`, front channels (99% of everything) should move to side without issue, while surround will remap more-gracefully than it would to front.
-            default-channel-map = "front-left,front-right" ## The canonical option. Ensures nothing breaks, but not as literally correct.
+            default-channel-map = "front-left,front-right"; ## The canonical option. Ensures nothing breaks, but not as literally correct.
 
             ## Misc
             rescue-streams = true; ## Prevents streams from sticking with dead sinks.
