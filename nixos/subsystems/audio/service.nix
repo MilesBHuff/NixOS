@@ -32,11 +32,11 @@ let
     };
     ## Many things expect quanta to be powers of two, so we need to round the above to their closest powers of two after we scale them by the latency multiplier.
     quanta = {
-        floor = num2pow2 "ceil"  (target_quanta.floor);
-        min   = num2pow2 "round" (target_quanta.min);
-        norm  = num2pow2 "floor" (target_quanta.norm) * latency_multiplier;
-        max   = num2pow2 "round" (target_quanta.max)  * latency_multiplier;
-        ceil  = num2pow2 "floor" (target_quanta.ceil) * latency_multiplier;
+        floor =  num2pow2 "ceil"  (target_quanta.floor);                      ## `ceil`  because we need to stay above the minimum it is feasible to feed in one microframe.
+        min   =  num2pow2 "round" (target_quanta.min);                        ## `round` because we're targeting this value roughly.
+        norm  = (num2pow2 "floor" (target_quanta.norm)) * latency_multiplier; ## `floor` because we're trying to keep below a perceptual target.
+        max   = (num2pow2 "round" (target_quanta.max))  * latency_multiplier; ## `round` because we're targeting this value roughly.
+        ceil  = (num2pow2 "floor" (target_quanta.ceil)) * latency_multiplier; ## `floor` because we're trying to stay below a perceptual target.
     };
 in {
     boot.extraModprobeConfig = lib.optionalString use_microframes ''
@@ -143,7 +143,7 @@ in {
 
                         "pulse.min.req" = "${quanta.min}/${sample_rate_default}";
                         "pulse.default.req" = "${quanta.norm}/${sample_rate_default}";
-                        "pulse.default.tlength" = "${quanta.norm}/${sample_rate_default}";
+                        "pulse.default.tlength" = "${toString (quanta.norm * periods)}/${sample_rate_default}";
 
                         "pulse.min.quantum" = "${quanta.min}/${sample_rate_default}";
                         "pulse.max.quantum" = "${quanta.max}/${sample_rate_default}";
