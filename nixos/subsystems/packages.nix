@@ -7,6 +7,7 @@ let
     ## For proprietary software, sandboxed packages are preferred over native packages.
     ## For sandboxed packages, prefer official releases over unofficial ones.
     ## Ceteris paribus, prefer Flatpak over Snap.
+    ## Use bubblejail for non-sandboxed apps that are proprietary or that connect directly to the Internet. Place wrappers in `/usr/local/bin` so that they mask the unjailed originals.
     compiles = [
         # "brotli"
         # "bzip2"
