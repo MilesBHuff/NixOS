@@ -1,6 +1,7 @@
 #!/usr/bin/env nix eval -f
 {config, pkgs, lib, var, ...}: {
-    security.apparmor.enable = true;
+    security.apparmor.enable = false; ## Should not enable without profiles. NixOS provides none by default.
     security.apparmor.enableCache = false; ## Not super compatible with the Nix store.
-    #TODO: Set all policies to complain... for now.
+    security.apparmor.killUnconfinedConfinables = true; ## Helps ensure that AppArmor is always enforced.
+    #NOTE: Enforcement is configured per-policy.
 }
